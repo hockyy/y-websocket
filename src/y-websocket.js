@@ -20,6 +20,7 @@ export const messageSync = 0
 export const messageQueryAwareness = 3
 export const messageAwareness = 1
 export const messageAuth = 2
+export const customMessage = 4
 
 /**
  *                       encoder,          decoder,          provider,          emitSynced, messageType
@@ -92,6 +93,16 @@ messageHandlers[messageAuth] = (
     provider.doc,
     (_ydoc, reason) => permissionDeniedHandler(provider, reason)
   )
+}
+
+messageHandlers[customMessage] = (
+  _encoder,
+  decoder,
+  provider,
+  _emitSynced,
+  _messageType
+) => {
+  provider.emit('custom-message', [decoding.readVarString(decoder)])
 }
 
 // @todo - this should depend on awareness.outdatedTime
@@ -295,6 +306,21 @@ export class WebsocketProvider extends Observable {
     this.shouldConnect = connect
 
     /**
+     * Send a message to a specific user
+     * @param target the target id
+     * @param message the message
+     */
+    this.sendToUser = (target, message) => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        const encoder = encoding.createEncoder()
+        encoding.writeVarUint(encoder, customMessage)
+        encoding.writeVarString(encoder, target)
+        encoding.writeVarString(encoder, message)
+        this.ws.send(encoding.toUint8Array(encoder))
+      }
+    }
+
+    /**
      * @type {number}
      */
     this._resyncInterval = 0
@@ -367,7 +393,7 @@ export class WebsocketProvider extends Observable {
       if (
         this.wsconnected &&
         messageReconnectTimeout <
-          time.getUnixTime() - this.wsLastMessageReceived
+        time.getUnixTime() - this.wsLastMessageReceived
       ) {
         // no message received in a long time - not even your own awareness
         // updates (which are updated every 15 seconds)

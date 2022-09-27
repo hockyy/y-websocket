@@ -69,6 +69,7 @@ exports.docs = docs
 
 const messageSync = 0
 const messageAwareness = 1
+const customMessage = 4
 // const messageAuth = 2
 
 /**
@@ -180,6 +181,16 @@ const messageListener = (conn, doc, message) => {
         awarenessProtocol.applyAwarenessUpdate(doc.awareness, decoding.readVarUint8Array(decoder), conn)
         break
       }
+      case customMessage :
+        const target = decoding.readVarString(decoder)
+        const message = decoding.readVarString(decoder)
+        console.log(target, message)
+        encoding.writeVarUint(encoder, customMessage)
+        encoding.writeVarString(encoder, message)
+        console.log(doc.conns)
+        const targetConn = doc.conns.get(target)
+        send(doc, targetConn, encoding.toUint8Array(encoder))
+        break
     }
   } catch (err) {
     console.error(err)
